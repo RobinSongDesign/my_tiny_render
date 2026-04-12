@@ -1,0 +1,28 @@
+{
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "Build All and Run",
+            "command": "clang++",
+            "args": [
+                "-fcolor-diagnostics",
+                "-g",
+                "*.cpp", 
+                "-o",
+                "main",
+                "&&",
+                "./main"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "detail": "编译目录下所有cpp文件并立即运行"
+        }
+    ],
+    "version": "2.0.0"
+}
