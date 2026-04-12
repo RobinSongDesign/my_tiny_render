@@ -42,30 +42,25 @@ int main(){
     
     
     Model *model = new Model("obj/african_head/african_head.obj");
+    TGAImage image(width, height, TGAImage::RGB);
 
     for(int i = 0; i < model->nfaces(); i++)
     {
-        std::vector<int> face = model -> face(i);
         for(int j = 0; j < 3; j++){
-            Vec3f v0 = model->point(face[j]);
-            Vec3f v1 = model->point(face[j+1]%3); //the next vertex
+            vec4 v0 = model->vert(i,j);
+            vec4 v1 = model->vert(i, (j + 1)%3); //the next vertex
 
             int x0 = (v0.x + 1.) * width/2.;
             int x1 = (v1.x + 1.) * width/2.;
             int y0 = (v0.y + 1.) * height/2.;
             int y1 = (v1.y + 1.) * height/2.;
+
+            line(x0, y0, x1, y1, image, white);
         }
-
-        line(x0, y0, x1, y1, image, white);
     }
-    
-    
-    TGAImage image(800, 800, TGAImage::RGB);
 
-    line(20, 13, 40, 80, image, blue); 
-    //line(13, 20, 80, 40, image, white); 
-
-    image.flip_vertically();
+    //image.flip_vertically();
+    
     image.write_tga_file("output.tga");
 
     return 0;
