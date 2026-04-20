@@ -58,6 +58,7 @@ template<> struct vec<3> {
     double x = 0, y = 0, z = 0;
     double& operator[](const int i)       { assert(i>=0 && i<3); return i ? (1==i ? y : z) : x; }
     double  operator[](const int i) const { assert(i>=0 && i<3); return i ? (1==i ? y : z) : x; }
+    vec<2> xy()  const { return {x, y};    }
 };
 
 template<> struct vec<4> {

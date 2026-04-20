@@ -57,37 +57,36 @@ vec3 barycentric(vec2 A, vec2 B, vec2 C, vec2 P)
     float v = w.y / w.z;
     return vec3{1.f - (u + v), u, v};
 }
-void triangle(vec2 *pts, TGAImage &image, TGAColor color)
+void triangle(vec3 *pts, TGAImage &image, TGAColor color, std::vector<double> &zbuffer)
 {
-    vec2 bboxmin = {pts[0].x, pts[0].y};
-    vec2 bboxmax = {pts[0].x, pts[0].y};
-    vec2 clamp = {(double)image.width() - 1, (double)image.height() - 1};
-
-    // find bbox
-    for (int i = 0; i < 3; i++)
-    {
-        for (int j = 0; j < 2; j++)
-        {
-            bboxmin[j] = std::max(0.0, std::min(bboxmin[j], pts[i][j]));
-            bboxmax[j] = std::min(clamp[j], std::max(bboxmax[j], pts[i][j]));
-        }
-    }
+    int minX = std::max(0, (int)std::floor(std::min(pts[0].x, std::min(pts[1].x, pts[2].x))));
+    int maxX = std::min(image.width() - 1, (int)std::ceil(std::max(pts[0].x, std::max(pts[1].x, pts[2].x))));
+    int minY = std::max(0, (int)std::floor(std::min(pts[0].y, std::min(pts[1].y, pts[2].y))));
+    int maxY = std::min(image.height() - 1, (int)std::ceil(std::max(pts[0].y, std::max(pts[1].y, pts[2].y))));
 
     vec2 P;
-    for (P.x = bboxmin.x; P.x <= bboxmax.x; P.x++)
-    {
-        for (P.y = bboxmin.y; P.y <= bboxmax.y; P.y++)
-        {
-            vec3 ba_screen = barycentric(pts[0], pts[1], pts[2], P);
-            if (ba_screen.x < 0 || ba_screen.y < 0 || ba_screen.z < 0)
-                continue;
+    for (int x = minX; x <= maxX; x++) {
+        for (int y = minY; y <= maxY; y++) {
+            
+            vec3 ba_screen = barycentric(pts[0].xy(), pts[1].xy(), pts[2].xy(), vec2{(double)x, (double)y});
+            
+            if (ba_screen.x < 0 || ba_screen.y < 0 || ba_screen.z < 0) continue;
 
-            image.set(P.x, P.y, color);
+            double frag_z = 0;
+            for (int i = 0; i < 3; i++) {
+                frag_z += pts[i].z * ba_screen[i];
+            }
+
+            int idx = x + y * width;
+            if (zbuffer[idx] < frag_z) {
+                zbuffer[idx] = frag_z;
+                image.set(x, y, color);
+            }
         }
     }
 }
 
-void triangle(vec2 *pts, TGAImage &image, TGAColor *colors)
+void gradienttriangle(vec3 *pts, TGAImage &image, TGAColor *colors)
 {
     vec2 bboxmin = {pts[0].x, pts[0].y};
     vec2 bboxmax = {pts[0].x, pts[0].y};
@@ -108,7 +107,7 @@ void triangle(vec2 *pts, TGAImage &image, TGAColor *colors)
     {
         for (P.y = bboxmin.y; P.y <= bboxmax.y; P.y++)
         {
-            vec3 ba_screen = barycentric(pts[0], pts[1], pts[2], P);
+            vec3 ba_screen = barycentric(pts[0].xy(), pts[1].xy(), pts[2].xy(), P);
             if (ba_screen.x < 0 || ba_screen.y < 0 || ba_screen.z < 0)
                 continue;
 
@@ -121,18 +120,22 @@ void triangle(vec2 *pts, TGAImage &image, TGAColor *colors)
     }
 }
 
-void rendermodel(vec3 lightdir, TGAImage &image, Model &model)
+void rendermodel(vec3 lightdir, TGAImage &image, Model &model, std::vector<double> &zbuffer)
 {
     for (int i = 0; i < model.nfaces(); i++)
     {
         vec3 worldcoor[3];
-        vec2 screencoor[3];
+        vec3 screencoor[3];
 
         for (int j = 0; j < 3; j++)
         {
             vec4 vertex = model.vert(i, j);
             worldcoor[j] = vertex.xyz();
-            screencoor[j] = vec2{(vertex.x + 1.) / 2 * image.width(), (vertex.y + 1.) / 2 * image.height()};
+            screencoor[j] = vec3{
+                (vertex.x + 1.) * image.width()  / 2., 
+                (vertex.y + 1.) * image.height() / 2., 
+                (vertex.z + 1.) * 255. / 2.
+            };
         }
 
         //normal
@@ -149,7 +152,7 @@ void rendermodel(vec3 lightdir, TGAImage &image, Model &model)
             (unsigned char)(intensity * 255), 
             (unsigned char)(intensity * 255), 
             255
-        });
+        }, zbuffer);
     }
     }
 }
@@ -160,11 +163,34 @@ int main()
 
     Model model ("./obj/african_head/african_head.obj");
 
-    rendermodel(vec3{0,0,-1}, image, model);
+    std::vector<double> zbuffer(width * height, -std::numeric_limits<double>::max());
+
+    rendermodel(vec3{0,0,-1}, image, model, zbuffer);
 
     // image.flip_vertically();
 
-    image.write_tga_file("./result/rendermodel0.tga");
+    TGAImage ZbufferImg(width, height, TGAImage::RGB);
+
+    for (int i = 0; i < width; i++)
+    {
+        for (int j = 0; j < height; j++)
+        {
+            double z_val = zbuffer[i + j * width]; // 先拿 double 值
+
+            // 1. 必须在转 unsigned char 之前做判断！
+            if (z_val < -1000) {
+                ZbufferImg.set(i, j, TGAColor{0, 0, 0, 255});
+                continue;
+            }
+            
+            unsigned char z = (unsigned char)std::min(255.0, std::max(0.0, z_val));
+            ZbufferImg.set(i, j, TGAColor{z, z, z, 255});
+        }
+        
+    }
+
+    image.write_tga_file("./result/rendermodel1.tga");
+    ZbufferImg.write_tga_file("./result/zbuffer.tga");
 
     return 0;
 }
