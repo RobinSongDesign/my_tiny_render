@@ -6,8 +6,8 @@ const TGAColor red = {{0, 0, 255, 255}, 4};
 const TGAColor blue = {{255, 255, 0, 255}, 4};
 const TGAColor green = {{0, 255, 0}, 4};
 
-const int height = 1024;
-const int width = 1024;
+const int height = 400;
+const int width = 400;
 
 void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color)
 {
@@ -85,11 +85,11 @@ void triangle(vec3 *pts, vec2 *uvs, TGAImage &image, TGAImage &diffuse_map, std:
 
             TGAColor color = diffuse_map.get(tex_idx, tex_idy);
 
-            // double b_intensity = ba_screen.x * intensity[0] + ba_screen.y * intensity[1] + ba_screen.z * intensity[2];
+            double b_intensity = ba_screen.x * intensity[0] + ba_screen.y * intensity[1] + ba_screen.z * intensity[2];
 
-            // for (int i = 0; i < 3; i++) {
-            //     color.bgra[i] *= b_intensity; 
-            // }
+            for (int i = 0; i < 3; i++) {
+                color.bgra[i] *= b_intensity; 
+            }
 
             int idx = x + y * width;
             if (zbuffer[idx] < frag_z) {
@@ -143,7 +143,7 @@ int main()
     std::vector<double> zbuffer(width * height, -std::numeric_limits<double>::max());
 
     //init light direction
-    vec3 lightdir{-1,0,-1};
+    vec3 lightdir{-1,0,1};
 
     //load diffuse
     TGAImage diffuse_map;
@@ -155,6 +155,7 @@ int main()
         vec3 worldcoor[3];
         vec3 screencoor[3];
         vec2 uvs[3];
+        double intensity[3];
 
         for (int j = 0; j < 3; j++)
         {
@@ -166,17 +167,8 @@ int main()
                 (vertex.z + 1.) * 255. / 2.
             };
             uvs[j] = model.uv(i,j);
-        }
-
-        //normal
-        vec3 normal = cross((worldcoor[2] - worldcoor[0]), (worldcoor[1] - worldcoor[0]));
-        normal = normalized(normal);
-
-        //obj nrm intensity
-        double intensity[3];
-        for (int i = 0; i < 3; i++)
-        {
-            intensity[i] = model.normal(uvs[i]).xyz() * lightdir;
+            vec3 n = normalized(model.normal(i,j).xyz());
+            intensity[j] = std::max(0., n * lightdir);
         }
 
         // Flat Shading
