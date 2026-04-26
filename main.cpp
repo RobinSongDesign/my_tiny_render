@@ -100,6 +100,20 @@ void triangle(vec3 *pts, vec2 *uvs, TGAImage &image, TGAImage &diffuse_map, std:
     }
 }
 
+typedef mat<4, 4> mat4;
+
+mat4 viewport(int x, int y, int w, int h) {
+    mat4 m;
+    m[0][3] = x + w/2.f;
+    m[1][3] = y + h/2.f;
+    m[2][3] = 255.f/2.f; // Z 映射到 0-255
+
+    m[0][0] = w/2.f;
+    m[1][1] = h/2.f;
+    m[2][2] = 255.f/2.f;
+    return m;
+}
+
 // void gradienttriangle(vec3 *pts, TGAImage &image, TGAColor *colors)
 // {
 //     vec2 bboxmin = {pts[0].x, pts[0].y};
@@ -149,6 +163,8 @@ int main()
     TGAImage diffuse_map;
     diffuse_map.read_tga_file("./obj/african_head/african_head_diffuse.tga");
 
+    mat4 VP = viewport(0, 0, width, height);
+
     //render model
     for (int i = 0; i < model.nfaces(); i++)
     {
@@ -160,12 +176,12 @@ int main()
         for (int j = 0; j < 3; j++)
         {
             vec4 vertex = model.vert(i, j);
-            worldcoor[j] = vertex.xyz();
-            screencoor[j] = vec3{
-                (vertex.x + 1.) * image.width()  / 2., 
-                (vertex.y + 1.) * image.height() / 2., 
-                (vertex.z + 1.) * 255. / 2.
-            };
+
+            vec4 v_homo = {vertex.x, vertex.y, vertex.z, 1.0};
+
+            vec4 v_result = VP * v_homo;
+
+            screencoor[j] = vec3{v_result[0], v_result[1], v_result[2]};
             uvs[j] = model.uv(i,j);
             vec3 n = normalized(model.normal(i,j).xyz());
             intensity[j] = std::max(0., n * lightdir);
