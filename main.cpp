@@ -163,7 +163,18 @@ int main()
     TGAImage diffuse_map;
     diffuse_map.read_tga_file("./obj/african_head/african_head_diffuse.tga");
 
-    mat4 VP = viewport(0, 0, width, height);
+    mat4 VP = viewport(width/8, height/8, width * 3/4, height * 3/4);
+
+    mat4 Projection = mat4();
+    Projection[3][2] = -1.f / 3.0;
+    Projection[0][0] = 1.;
+    Projection[1][1] = 1.;
+    Projection[2][2] = 1.;
+    Projection[3][3] = 1.;
+    // 1 0 0 0
+    // 0 1 0 0
+    // 0 0 1 0
+    // 0 0 -1/3 1
 
     //render model
     for (int i = 0; i < model.nfaces(); i++)
@@ -176,12 +187,21 @@ int main()
         for (int j = 0; j < 3; j++)
         {
             vec4 vertex = model.vert(i, j);
-
             vec4 v_homo = {vertex.x, vertex.y, vertex.z, 1.0};
 
-            vec4 v_result = VP * v_homo;
+            // 1. 先只做投影变换
+            vec4 v_after_proj = Projection * v_homo;
 
-            screencoor[j] = vec3{v_result[0], v_result[1], v_result[2]};
+            // 2. 立即进行透视除法（归一化到 [-1, 1] 的标准设备坐标系）
+            vec3 v_ndc = {v_after_proj[0]/v_after_proj[3], 
+                        v_after_proj[1]/v_after_proj[3], 
+                        v_after_proj[2]/v_after_proj[3]};
+
+            // 3. 最后再通过 VP 矩阵（或者手动映射）转为屏幕像素
+            // 注意：VP 是 4x4，所以这里要把 v_ndc 再转成 vec4 乘一次，或者手动写公式
+            vec4 v_final = VP * vec4{v_ndc.x, v_ndc.y, v_ndc.z, 1.0};
+
+            screencoor[j] = v_final.xyz();
             uvs[j] = model.uv(i,j);
             vec3 n = normalized(model.normal(i,j).xyz());
             intensity[j] = std::max(0., n * lightdir);
@@ -193,7 +213,7 @@ int main()
 
     TGAImage ZbufferImg(width, height, TGAImage::RGB);
 
-    image.write_tga_file("./result/rendermodel3.tga");
+    image.write_tga_file("./result/rendermodelProjection.tga");
     ZbufferImg.write_tga_file("./result/zbuffer.tga");
 
     return 0;
