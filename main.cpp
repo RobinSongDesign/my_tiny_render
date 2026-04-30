@@ -6,8 +6,8 @@ const TGAColor red = {{0, 0, 255, 255}, 4};
 const TGAColor blue = {{255, 255, 0, 255}, 4};
 const TGAColor green = {{0, 255, 0}, 4};
 
-const int height = 400;
-const int width = 400;
+const int height = 1200;
+const int width = 1200;
 
 void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color)
 {
@@ -117,10 +117,24 @@ mat4 viewport(int x, int y, int w, int h) {
 mat4 lookat(vec3 eye, vec3 center, vec3 up)
 {
     vec3 z_axis = normalized(eye - center);
-    vec3 y_axis = normalized(up);
-    vec3 x_axis = normalized(cross(z_axis, y_axis));
+    vec3 x_axis = normalized(cross(up, z_axis));
+    vec3 y_axis = normalized(cross(z_axis, x_axis));
 
     mat4 M;
+    M.identity();
+
+    //Rotate: 
+    M[0] = vec4{x_axis.x, x_axis.y, x_axis.z, 0.f};
+    M[1] = vec4{y_axis.x, y_axis.y, y_axis.z, 0.f};
+    M[2] = vec4{z_axis.x, z_axis.y, z_axis.z, 0.f};
+    M[3] = vec4{0.f,      0.f,      0.f,      1.f};
+
+    //Translate: eye to center
+    M[0][3] = -(eye * x_axis);
+    M[1][3] = -(eye * y_axis);
+    M[2][3] = -(eye * z_axis);
+
+    return M;
 }
 
 // void gradienttriangle(vec3 *pts, TGAImage &image, TGAColor *colors)
@@ -172,18 +186,17 @@ int main()
     TGAImage diffuse_map;
     diffuse_map.read_tga_file("./obj/african_head/african_head_diffuse.tga");
 
-    mat4 VP = viewport(width/8, height/8, width * 3/4, height * 3/4);
+    mat4 VP = viewport(0, 0, width, height);
 
-    mat4 Projection = mat4();
-    Projection[3][2] = -1.f / 3.0;
-    Projection[0][0] = 1.;
-    Projection[1][1] = 1.;
-    Projection[2][2] = 1.;
-    Projection[3][3] = 1.;
-    // 1 0 0 0
-    // 0 1 0 0
-    // 0 0 1 0
-    // 0 0 -1/3 1
+    mat4 Projection = mat4().identity();
+    double c = 10;
+    Projection[3][2] = -1.f / c;
+
+    vec3 eye{1,1,3};
+    vec3 centre{0,0,0};
+    vec3 up{0,1,0};
+
+    mat4 V = lookat(eye,centre,up);
 
     //render model
     for (int i = 0; i < model.nfaces(); i++)
@@ -198,8 +211,10 @@ int main()
             vec4 vertex = model.vert(i, j);
             vec4 v_homo = {vertex.x, vertex.y, vertex.z, 1.0};
 
+            vec4 v_view = V * v_homo;
             // 1. 先只做投影变换
-            vec4 v_after_proj = Projection * v_homo;
+
+            vec4 v_after_proj = Projection * v_view;
 
             // 2. 立即进行透视除法（归一化到 [-1, 1] 的标准设备坐标系）
             vec3 v_ndc = {v_after_proj[0]/v_after_proj[3], 
@@ -222,7 +237,7 @@ int main()
 
     TGAImage ZbufferImg(width, height, TGAImage::RGB);
 
-    image.write_tga_file("./result/rendermodelProjection.tga");
+    image.write_tga_file("./result/rendermodelView1.tga");
     ZbufferImg.write_tga_file("./result/zbuffer.tga");
 
     return 0;

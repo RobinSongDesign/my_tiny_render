@@ -1,3 +1,29 @@
+
+## 🎥 Lesson 4: Camera & Transformation Pipeline
+
+- **LookAt Matrix Implementation**: 
+    - Moved away from a static camera. Implemented the `lookat` function to define camera state using **Eye**, **Center**, and **Up** vectors.
+    - Derived the Change of Basis matrix by calculating orthonormal basis vectors $(\vec{x'}, \vec{y'}, \vec{z'})$.
+    - Fixed the common pitfall: Ensuring the translation is calculated as the dot product $-(\vec{axis} \cdot \vec{eye})$ to correctly combine Rotation and Translation ($M = R \cdot T$).
+  
+- **Unified MVP Pipeline**: 
+    - Established a formal vertex transformation flow:  
+      $$V_{screen} = Viewport \cdot Projection \cdot View \cdot Model \cdot V_{local}$$
+    - This architecture allows for independent control over object placement (Model), camera positioning (View), and lens perspective (Projection).
+
+- **Perspective Optimization**:
+    - Tuned the projection coefficient $c$. Experimented with different values to balance between "Telephoto" (large $c$) and "Wide-angle" (small $c$) effects.
+    - Verified that smaller $c$ values intensify the "near-big, far-small" distortion but require viewport/model scaling to maintain subject size.
+
+## 🛠 Bug Fixes & Technical Insights
+- **Cross Product Order**: Corrected the $x$-axis calculation to `cross(up, z_axis)` to maintain a standard Right-Handed Coordinate System.
+- **Orthonormalization**: Re-calculated the `y_axis` via `cross(z_axis, x_axis)` instead of using the raw `up` vector to ensure the basis is strictly orthogonal, preventing mesh shearing.
+- **W-Divide Logic**: Confirmed that $w' = 1 - z/c$ is the heart of perspective, where $c$ acts as the focal length of our virtual lens.
+
+## 📸 Current Output
+[Side View](/screenshots/africanhead_side.png)
+**Next Step**: Lesson 5 - Moving logic into a Shader-based architecture (`IShader` interface).
+
 ## 📐 Lesson 2: Rasterization & Perspective
 - **Z-buffer Depth Testing**: Solved the "overlapping triangles" issue by maintaining a depth buffer. Used `double` precision to prevent Z-fighting and ensured the buffer was initialized to negative infinity.
 - **Barycentric Coordinates**: Implemented a robust triangle filling algorithm. Used barycentric interpolation for $z$, UV coordinates, and light intensity, ensuring smooth transitions across triangle faces.
