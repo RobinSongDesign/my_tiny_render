@@ -114,6 +114,15 @@ mat4 viewport(int x, int y, int w, int h) {
     return m;
 }
 
+mat4 lookat(vec3 eye, vec3 center, vec3 up)
+{
+    vec3 z_axis = normalized(eye - center);
+    vec3 y_axis = normalized(up);
+    vec3 x_axis = normalized(cross(z_axis, y_axis));
+
+    mat4 M;
+}
+
 // void gradienttriangle(vec3 *pts, TGAImage &image, TGAColor *colors)
 // {
 //     vec2 bboxmin = {pts[0].x, pts[0].y};

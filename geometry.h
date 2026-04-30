@@ -121,6 +121,13 @@ template<int nrows,int ncols> struct mat {
             for (int j=nrows; j--; ret[i][j]=rows[j][i]);
         return ret;
     }
+
+    static mat<nrows, ncols> identity() {
+        mat<nrows, ncols> ret;
+        for (int i = nrows; i--; )
+            for (int j = ncols; j--; ret[i][j] = (i == j));
+        return ret;
+    }
 };
 
 template<int nrows,int ncols> vec<ncols> operator*(const vec<nrows>& lhs, const mat<nrows,ncols>& rhs) {
